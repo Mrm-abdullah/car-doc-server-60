@@ -14,7 +14,7 @@ app.use(express.json());
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.okzu8ip.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -32,12 +32,70 @@ async function run() {
         await client.connect();
 
         const servicesCollection = client.db("carDocs").collection("service");
+        const bookingsCollection = client.db("carDocs").collection("bookings");
 
-        app.get('/services', async(req, res) => {
+        app.get('/services', async (req, res) => {
             const cursor = servicesCollection.find();
             const result = await cursor.toArray();
             res.send(result)
         })
+        app.get('/services/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+
+            const options = {
+                projection: { title: 1, price: 1, service_id: 1, img: 1 },
+            };
+            const result = await servicesCollection.findOne(query, options);
+            res.send(result)
+        })
+
+         // booking
+         app.get('/bookings', async (req, res) => {
+            console.log(req.query?.email);
+        //     // console.log('tok tok token', req.cookies.token); 
+        //     console.log('from in the user', req.user);
+        //     if (req.query.email !== req.user.email) {
+        //         return res.status(403).send({ message: 'forbidden' })
+        //     }
+            let query = {}
+            if (req.query?.email) {
+                query = { email: req.query.email }
+            }
+            const result = await bookingsCollection.find(query).toArray();
+            res.send(result)
+        })
+
+        app.post('/bookings', async (req, res) => {
+            const booking = req.body;
+            console.log(booking);
+            const result = await bookingsCollection.insertOne(booking);
+            res.send(result);
+        })
+
+        
+        app.patch('/bookings/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const booking = req.body;
+            console.log(booking);
+            const updateDoc = {
+                $set: {
+                    status: booking.status
+                },
+            };
+            const result = await bookingsCollection.updateOne(query, updateDoc);
+            res.send(result);
+        })
+        
+        app.delete('/bookings/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await bookingsCollection.deleteOne(query);
+            res.send(result);
+        })
+
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
